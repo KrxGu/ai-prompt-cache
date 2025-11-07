@@ -25,7 +25,7 @@ This made debugging extremely difficult. We've reported this to Vercel on GitHub
 
 ## Initial Aim
 
-Build and ship `@krxgu/ai-prompt-cache` — a middleware for the Vercel AI SDK that:
+Build and ship `@krishgupta/ai-prompt-cache` — a middleware for the Vercel AI SDK that:
 - Automatically detects a long, reusable system prefix in chat messages
 - Generates a deterministic SHA-256 cache key for that prefix
 - Injects provider hints so providers (OpenAI, Anthropic) can reuse prompt state

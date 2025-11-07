@@ -7,7 +7,7 @@ import {
   type UIMessage,
   pipeTextStreamToResponse,
 } from 'ai';
-import { withPromptCache } from '@krxgu/ai-prompt-cache';
+import { withPromptCache } from '@krishgupta/ai-prompt-cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';

@@ -1,8 +1,8 @@
 import type { LanguageModelMiddleware } from 'ai';
-import { applyAnthropicCacheControl } from './anthropic';
-import { applyOpenAICacheKey } from './openai';
-import { sha256Hex } from './key';
-import { extractSystemPrefix, type CacheSelect } from './util';
+import { applyAnthropicCacheControl } from './anthropic.js';
+import { applyOpenAICacheKey } from './openai.js';
+import { sha256Hex } from './key.js';
+import { extractSystemPrefix, type CacheSelect } from './util.js';
 
 export type PromptCacheOptions = {
   select?: CacheSelect;
@@ -86,4 +86,4 @@ function transformParams(
   return params;
 }
 
-export type { CacheSelect } from './util';
+export type { CacheSelect } from './util.js';

@@ -7,7 +7,7 @@
     "apps/*"
   ],
   "scripts": {
-    "build": "npm run build -w @krxgu/ai-prompt-cache",
+    "build": "npm run build -w @krishgupta/ai-prompt-cache",
     "dev": "npm run dev -w demo-next"
   }
 }

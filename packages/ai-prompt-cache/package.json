@@ -1,6 +1,6 @@
 {
-  "name": "@krxgu/ai-prompt-cache",
-  "version": "0.1.0",
+  "name": "@krishgupta/ai-prompt-cache",
+  "version": "0.1.2",
   "type": "module",
   "main": "dist/index.js",
   "exports": {

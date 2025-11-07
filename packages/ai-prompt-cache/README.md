@@ -1,4 +1,4 @@
-# @krxgu/ai-prompt-cache
+# @krishgupta/ai-prompt-cache
 
 A tiny middleware for the Vercel AI SDK that sets deterministic prompt cache hints across providers. It automatically:
 
@@ -11,7 +11,7 @@ A tiny middleware for the Vercel AI SDK that sets deterministic prompt cache hin
 ```ts
 import { wrapLanguageModel } from 'ai';
 import { openai } from '@ai-sdk/openai';
-import { withPromptCache } from '@krxgu/ai-prompt-cache';
+import { withPromptCache } from '@krishgupta/ai-prompt-cache';
 
 const model = wrapLanguageModel({
   model: openai('gpt-4o-mini'),
