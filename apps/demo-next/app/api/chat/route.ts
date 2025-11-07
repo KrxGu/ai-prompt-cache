@@ -23,18 +23,18 @@ export async function POST(request: Request): Promise<Response> {
       ? openai('gpt-4o')
       : anthropic('claude-3-5-sonnet-latest');
 
-  console.log('[BASELINE] Calling streamText...');
+  console.log('[BASELINE] Calling streamText with converted messages...');
   
   const result = streamText({
     model,
     messages: convertToModelMessages(messages),
+    onError: (error) => {
+      console.error('[BASELINE ERROR]', error);
+    },
   });
 
   console.log('[BASELINE] streamText returned');
-  console.log('[BASELINE] Result type:', typeof result);
-  console.log('[BASELINE] Has textStream:', 'textStream' in result);
-  console.log('[BASELINE] textStream type:', typeof result.textStream);
 
-  // Return the stream directly without wrapping
+  // Return text stream response
   return result.toTextStreamResponse();
 }
