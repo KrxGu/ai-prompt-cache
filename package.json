@@ -1,0 +1,13 @@
+{
+  "name": "ai-prompt-cache-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "packages/*",
+    "apps/*"
+  ],
+  "scripts": {
+    "build": "npm run build -w @krxgu/ai-prompt-cache",
+    "dev": "npm run dev -w demo-next"
+  }
+}

@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Stream Test</title>
+</head>
+<body>
+  <h1>Stream Test</h1>
+  <button onclick="testStream()">Test Stream</button>
+  <div id="output"></div>
+
+  <script>
+    async function testStream() {
+      console.log('[Test] Starting stream test...');
+      const output = document.getElementById('output');
+      output.innerHTML = 'Testing...<br>';
+      
+      try {
+        const response = await fetch('/api/test-stream', {
+          method: 'POST',
+        });
+        
+        console.log('[Test] Response status:', response.status);
+        
+        if (!response.ok || !response.body) {
+          output.innerHTML += 'ERROR: Bad response<br>';
+          return;
+        }
+        
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        
+        while (true) {
+          const { done, value } = await reader.read();
+          
+          if (done) {
+            console.log('[Test] Stream complete');
+            output.innerHTML += '<br>DONE';
+            break;
+          }
+          
+          const text = decoder.decode(value, { stream: true });
+          console.log('[Test] Received:', text);
+          output.innerHTML += text + '<br>';
+        }
+      } catch (error) {
+        console.error('[Test] Error:', error);
+        output.innerHTML += 'ERROR: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>
