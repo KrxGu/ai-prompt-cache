@@ -104,11 +104,13 @@ Without reliably streaming tokens, the core demo cannot show the product value (
 - `POST /api/chat 200 in 8xxx ms` (shows provider processed request)
 - If prior to key swap, 429 quota errors (include full stack trace)
 
-**SDK + Next.js versions:**
+**SDK + Next.js versions tested:**
 - AI SDK `ai` v5.x
 - `@ai-sdk/openai` v2.x
-- Next.js 14.2.15
+- Next.js 14.2.15, 15.5.6, and 16.0.2-canary.9 (issue persists across all versions)
 - Node runtime in route handler
+
+**Conclusion:** Issue is AI SDK-specific, not Next.js version-dependent.
 
 ## Recommended Next Steps
 
