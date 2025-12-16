@@ -5,9 +5,8 @@ import {
   streamText,
   wrapLanguageModel,
   type UIMessage,
-  pipeTextStreamToResponse,
 } from 'ai';
-import { withPromptCache } from '@krishgupta/ai-prompt-cache';
+import { withPromptCache, type CacheReport } from '@krishgupta/ai-prompt-cache';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -28,14 +27,28 @@ export async function POST(request: Request): Promise<Response> {
       ? openai('gpt-4o')
       : anthropic('claude-3-5-sonnet-latest');
 
-  // Re-enable middleware now that we have a working API key
+  // Use the new v0.2.0 API with observability hooks
   const model = wrapLanguageModel({
     model: baseModel,
     middleware: withPromptCache({
       select: 'system-head',
       extraKeySalt: 'demo-v1',
-      openai: { enable: provider === 'openai' },
-      anthropic: { enable: provider === 'anthropic', ttl: '1h' },
+      
+      // Observability hooks
+      onEligibilityCheck: (result) => {
+        console.log(`[CACHE] Eligibility: ${result.eligible ? 'ELIGIBLE' : 'INELIGIBLE'} (${result.reason})`);
+        if (!result.eligible && result.tokensEstimated) {
+          console.log(`[CACHE] Tokens estimated: ${result.tokensEstimated}, Threshold: ${result.threshold}`);
+        }
+      },
+      onCacheResult: (report: CacheReport) => {
+        if (report.hit) {
+          console.log(`[CACHE] 🎯 HIT! ${report.cachedTokens} tokens from cache`);
+        } else {
+          console.log(`[CACHE] ❌ MISS - cache key: ${report.cacheKey}`);
+        }
+        console.log(`[CACHE] Provider: ${report.provider}, TTFT: ${report.ttft}ms`);
+      },
     }),
   });
 
@@ -50,19 +63,6 @@ export async function POST(request: Request): Promise<Response> {
       onError: (error) => {
         console.error('[CACHE ERROR]', error);
       },
-    });
-
-    // Log cache hits after stream completes
-    result.providerMetadata.then(meta => {
-      const cachedTokens = (meta?.openai?.cachedPromptTokens as number) ?? 0;
-      console.log(`[CACHE] cachedPromptTokens: ${cachedTokens}`);
-      if (cachedTokens > 0) {
-        console.log(`[CACHE] 🎯 CACHE HIT! ${cachedTokens} tokens served from cache`);
-      } else {
-        console.log(`[CACHE] CACHE MISS - writing to cache`);
-      }
-    }).catch(err => {
-      console.error('[CACHE] Error reading providerMetadata:', err);
     });
 
     console.log('[CACHE] Returning text stream...');
