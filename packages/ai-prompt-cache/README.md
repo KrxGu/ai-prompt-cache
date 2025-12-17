@@ -1,14 +1,14 @@
 # @krishgupta/ai-prompt-cache
 
-A production-grade prompt caching middleware suite for the Vercel AI SDK. Reduce TTFT by 26-69% with multi-provider support.
+Middleware for the Vercel AI SDK that enables prompt caching across providers. Tested improvements show 50%+ reduction in time-to-first-token (TTFT).
 
 ## Features
 
-- **Multi-provider prompt caching**: OpenAI, Anthropic, Bedrock, Gemini, OpenAI-compatible
-- **Response caching**: Full response caching with streaming replay
-- **In-flight coalescing**: Deduplicate concurrent identical requests
-- **Key sharding**: Distribute cache keys for high-QPS scenarios
-- **Observability hooks**: Track eligibility, cache hits, and TTFT
+- Multi-provider prompt caching (OpenAI, Anthropic, Bedrock, Gemini)
+- Full response caching with streaming replay
+- In-flight request coalescing to deduplicate concurrent calls
+- Key sharding for high-QPS scenarios
+- Observability hooks for tracking cache hits and TTFT
 
 ## Installation
 
@@ -16,7 +16,7 @@ A production-grade prompt caching middleware suite for the Vercel AI SDK. Reduce
 npm install @krishgupta/ai-prompt-cache
 ```
 
-## Quick Start
+## Usage
 
 ```ts
 import { wrapLanguageModel, streamText } from 'ai';
@@ -28,9 +28,6 @@ const model = wrapLanguageModel({
   middleware: withPromptCache({
     select: 'system-head',
     extraKeySalt: 'my-app-v1',
-    onCacheResult: (report) => {
-      console.log(`Cache ${report.hit ? 'HIT' : 'MISS'}: ${report.cachedTokens || 0} tokens`);
-    },
   }),
 });
 
@@ -43,120 +40,94 @@ const result = await streamText({
 });
 ```
 
+## Benchmark Results
+
+Tested with OpenAI gpt-4o and a ~1200 line system prompt:
+
+| Request | Mode | TTFT |
+|---------|------|------|
+| 1 | Baseline | 2223 ms |
+| 2 | With Cache | 1090 ms |
+
+**Result: 51% faster TTFT**
+
+Server-side metrics showed consistent cache key generation and TTFT dropping from 377ms to 337ms on subsequent cached requests.
+
+## Supported Providers
+
+- OpenAI (via promptCacheKey)
+- Anthropic (via cacheControl markers)
+- AWS Bedrock (via cachePoint)
+- Google Gemini (implicit caching)
+- OpenAI-compatible APIs
+
+## Options
+
+| Option | Default | Description |
+|--------|---------|-------------|
+| select | system-head | Which prefix to cache. Options: system-head, tools+system, or a custom function |
+| extraKeySalt | undefined | Additional data to include in cache key (useful for RAG chunk IDs) |
+| onCacheResult | undefined | Callback with cache report after request completes |
+| debug | false | Enable debug logging |
+
 ## Response Caching
 
-For even faster responses, add full response caching:
+For full response caching with streaming replay:
 
 ```ts
 import { withPromptCache, withResponseCache, MemoryStore } from '@krishgupta/ai-prompt-cache';
 
-const responseStore = new MemoryStore({ maxSize: 1000 });
+const store = new MemoryStore({ maxSize: 1000 });
 
 const model = wrapLanguageModel({
   model: openai('gpt-4o'),
   middleware: [
     withPromptCache({ select: 'system-head' }),
-    withResponseCache({
-      store: responseStore,
-      ttlSeconds: 3600,
-      onCacheResult: ({ hit }) => console.log(hit ? 'Response HIT' : 'Response MISS'),
-    }),
+    withResponseCache({ store, ttlSeconds: 3600 }),
   ],
 });
 ```
 
-## Provider Support
-
-| Provider | Status | Cache Mechanism |
-| --- | --- | --- |
-| OpenAI | ✅ | `promptCacheKey` with retention options |
-| Anthropic | ✅ | `cacheControl` markers with TTL |
-| AWS Bedrock | ✅ | `cachePoint` for Claude models |
-| Google Gemini | ✅ | Implicit caching (context caching) |
-| OpenAI-compatible | ✅ | Same as OpenAI |
-
-## Options
-
-### withPromptCache
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `select` | `'system-head'` | Which prefix to cache: `'system-head'`, `'tools+system'`, or custom function |
-| `extraKeySalt` | `undefined` | Extra data mixed into cache key (RAG chunk IDs, version) |
-| `sharding.shards` | `undefined` | Number of shards for high-QPS scenarios |
-| `sharding.by` | `'random'` | Sharding strategy: `'random'`, `'round-robin'`, `'user'`, `'session'` |
-| `onEligibilityCheck` | `undefined` | Callback after eligibility check |
-| `onCacheResult` | `undefined` | Callback with cache report after completion |
-| `eligibility.strict` | `false` | Skip caching if below provider's minimum tokens |
-| `debug` | `false` | Enable debug logging |
-
-### withResponseCache
-
-| Option | Default | Description |
-| --- | --- | --- |
-| `store` | required | Cache store (MemoryStore, FileStore, or custom) |
-| `ttlSeconds` | `3600` | Time-to-live for cached responses |
-| `coalesceInflight` | `false` | Deduplicate concurrent identical requests |
-| `keyGenerator` | `undefined` | Custom cache key generator |
-| `onCacheResult` | `undefined` | Callback with hit/miss status |
-| `debug` | `false` | Enable debug logging |
-
 ## Cache Stores
 
-### MemoryStore (built-in)
+Built-in stores:
 
 ```ts
+// In-memory LRU cache
 import { MemoryStore } from '@krishgupta/ai-prompt-cache';
-const store = new MemoryStore({ maxSize: 1000 }); // LRU cache
-```
+const store = new MemoryStore({ maxSize: 1000 });
 
-### FileStore (development)
-
-```ts
+// File-based cache (for development)
 import { FileStore } from '@krishgupta/ai-prompt-cache';
 const store = new FileStore({ directory: '.cache' });
 ```
 
-### Custom Store
-
-Implement the `CacheStore` interface:
+Custom stores need to implement:
 
 ```ts
 interface CacheStore {
   get(key: string): Promise<string | null>;
   set(key: string, value: string, ttlSeconds?: number): Promise<void>;
-  delete?(key: string): Promise<void>;
 }
 ```
 
-## Observability
+## How It Works
 
-Track cache performance with callbacks:
+The middleware generates a stable SHA-256 hash of the cacheable prefix (system prompt by default) and passes it to the provider:
 
-```ts
-withPromptCache({
-  onEligibilityCheck: (result) => {
-    if (!result.eligible) {
-      console.log(`Ineligible: ${result.reason}, tokens: ${result.tokensEstimated}`);
-    }
-  },
-  onCacheResult: (report) => {
-    metrics.record({
-      provider: report.provider,
-      hit: report.hit,
-      cachedTokens: report.cachedTokens,
-      ttft: report.ttft,
-    });
-  },
-});
-```
+- OpenAI: Sets promptCacheKey in provider options
+- Anthropic: Adds cacheControl markers to messages
+- Bedrock: Inserts cachePoint for Claude models
 
-## Provider Notes
+OpenAI caches prompts with 1024+ tokens and reuses them in 128-token increments. Anthropic requires similar minimum thresholds depending on the model.
 
-- **OpenAI**: Caches prompts ≥1024 tokens, reuses in 128-token increments. `promptCacheKey` improves hit rate.
-- **Anthropic**: Requires `cacheControl` markers and minimum tokens (1024 for Sonnet, 2048 for Haiku).
-- **Bedrock**: Uses `cachePoint` for Claude models on AWS Bedrock.
-- **Gemini**: Uses implicit context caching (no explicit markers needed).
+## Provider Requirements
+
+| Provider | Minimum Tokens |
+|----------|----------------|
+| OpenAI | 1024 |
+| Anthropic Claude Sonnet | 1024 |
+| Anthropic Claude Haiku | 2048 |
 
 ## License
 
