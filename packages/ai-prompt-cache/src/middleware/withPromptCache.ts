@@ -204,9 +204,32 @@ function transformParams(original: any, config: InternalConfig): any {
     return params;
   }
 
-  // Detect provider
-  const adapter = detectAdapter(params);
-  const providerName = adapter?.name || 'unknown';
+  // Detect provider - fallback based on enabled config if auto-detect fails
+  let adapter = detectAdapter(params);
+  let providerName = adapter?.name || 'unknown';
+  
+  // Fallback: if auto-detect fails but provider is enabled, use that
+  if (providerName === 'unknown') {
+    if (config.openai.enable) {
+      providerName = 'openai';
+      adapter = openaiAdapter;
+    } else if (config.anthropic.enable) {
+      providerName = 'anthropic';
+      adapter = anthropicAdapter;
+    } else if (config.bedrock.enable) {
+      providerName = 'bedrock';
+      adapter = bedrockAdapter;
+    } else if (config.gemini.enable) {
+      providerName = 'gemini';
+      adapter = geminiAdapter;
+    }
+  }
+
+  if (config.debug) {
+    console.log('[withPromptCache] Model ID:', params.modelId);
+    console.log('[withPromptCache] Provider options:', Object.keys(params.providerOptions || {}));
+    console.log('[withPromptCache] Detected provider:', providerName);
+  }
 
   // Check eligibility
   const eligibilityResult = checkEligibility({
